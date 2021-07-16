@@ -1,0 +1,260 @@
+## Setup and Deployment
+
+The first step to start the setup is to register as an Operator with Wakandi. This process ensures that the Operator is unique and only one Operator on the entire network is available with that name. It is important to note that no Operators can get the same name. Also, this is the name through which users of the Operator will be identified to everyone on the network.
+
+e.g. user@operatorename
+
+**NOTE : **
+**If you already have a running operator node, with Sandbox 1.1.xxx release, the existing operator node is to be deleted and re-configured again.
+To delete the existing setup follow the delete steps mentioned below else skip to setup and deployment steps.**<br/>
+**connect to the server using SSH and run the following commands one by one.**
+>
+- cli
+
+```cli
+$ sudo kubeadm reset -f
+$ sudo rm -r $HOME/.kube
+$ sudo rm -r $HOME/.composer/
+$ sudo rm -r $HOME/mongo-docker-files/ $HOME/mysql-docker-files/ $HOME/API-docker-files/ $HOME/setup
+```
+
+**Name Registration**
+
+To register as an Operator with Wakandi, please send an email to ‘support@wakandi.com’ or log a support ticket and provide the following details:
+
+- Name of the Company
+
+- Operator Name (Unique name known in the network)
+
+- Admin Email (Authorized person with whom credentials can be shared)
+
+**NOTE: The name of the operator can only start with lowercase alphabets and can be alphanumeric with the limit of 250 characters.**
+
+Based on the agreement between Wakandi and the Operator, default network fee (Transaction Fee) will be configured at the time of network setup. Fee will be deducted and transferred to wakandi owned wallet “lfw@{operatorname}” for every transaction. More details of the transaction fee is explained here.
+
+**System and Firewall**
+
+Once the Operator is registered, operator will be provided with operator specific credentials for SFTP and access to Git and Docker Repositories to be able to connect with servers to exchange certificates, get code and docker images.
+
+Operators are required to have:
+
+- **High speed Internet connection**
+- **Ubuntu 16.04 LTS (Version must be the same) machine. Minimum requirements for the machine is 16 GB Memory, octa-core processor (8-cores), 250 GB of hard disk**
+- **Ubuntu machine should be accessible on a public IP**
+- **Domain name for the operator**
+- **The DNS entry need to be added as mentioned below for the domain name chosen above.**
+
+|  **Record** | **Host**  |  **Point** |
+|---|---|---|
+| A  |  \*.domain_name_chosen_for_operator (Example: *.wakandinode.operator.com) | IP of the machine  |
+| TXT  |  domain_name_chosen_for_operator (Example: wakandinode.operator.com) | 4EN7jpwmjhtwHKjHlCqShrDQWtzAnDTEW5G  |    
+
+**The firewall needs to be setup to allow connections only from Wakandi Master node. Below are the IP and ports that require access to the machine**
+
+|  **Port** | **IP**  |
+|---|---|
+| 22 | IP of the Machine (ssh) |
+| 8443 | IP of the Machine (Fabric network setup)
+| 443 | IP of the Machine (Core API) [optional]
+
+![alt text](https://docs.wakandi.com/storage/Network%20Security%20Digram.svg)
+
+**NOTE: This is a requirement for the Sandbox environment. The production environment will be restricted. Firewall will be required to have a point to point VPN connection with Wakandi Main node.**
+
+**Setup**
+
+All applications are deployed using Kubernetes and Docker. This will allow setting up more machines, enable load balancing, and making it easy to upgrade and take backups.
+
+Once all the above requirements are met and the system is ready, the Operator can start the deployment of the Operator Node. In order to do that
+
+* connect to the server configured above using SSH
+
+* open the file /etc/sudoers and edit it as explained below:
+  * sudo nano /etc/sudoers
+  * Add the below line at the end of the file
+    * machine_username ALL=(ALL:ALL) NOPASSWD: ALL
+    * (replace machine_username with username of the machine)
+* save and close the file
+
+* clone the script on the home directory of the user from Wakandi git repository. Credentials of the git are provided during the registration process.
+
+>
+- cli
+
+```cli
+$ git clone “https://git.wakandi.com/operator/setup.git” && cd setup
+```
+
+* Edit the configuration file “network.json” with the credentials provided during operator registration and operator specific details.
+
+>
+- json
+
+```json
+{
+       "details": {
+               "operator_domain": "operator_domain_name",
+               "sftp_user": "sftp_username",
+               "sftp_password": "sftppassword",
+               "tokens": ["USD"],
+               "mainnode_service": "mainnode_service",
+               "callback_service": "callback_service"
+       }
+}
+```
+
+* Once the configuration changes are made, run the following script to start the setup process.
+
+**NOTE:  DO NOT use “sudo” to run this command as it may cause the setup to fail and you will have to restart the process again.**
+
+>
+- cli
+
+```cli
+$ ./wakandi-network.sh start
+```
+
+It may take several minutes to complete the installation. Above command will install all prerequisites, download docker images, generate and exchange cryptographic certificates, run Hyperledger organization, deploy APIs and Admin Panel, setup Operator Network and connect to Global Network.
+
+On a successful setup, you will see the output as provided below.
+
+>
+- cli
+
+```cli
+** Welcome to Wakandi Network **
+
+** Operator Name:
+** Channel Name: 
+** Cryptographic Certificate location :
+** Connected Network: Sandbox
+
+**Generated Key Information**
+** API Key:
+** Access Key:
+
+**API Certificate Location:
+
+**API Certificate Passphrase: 
+
+```
+
+<video controlsList=”nodownload” controls="controls" width="740" height="460"><source src="https://cdn.wakandi.com/Docs_Videos/1 OP_setup.mov" type="video/mp4"></video>
+<br/><br/>
+
+
+**NOTE: Please save the certificates in a safe and secure place as you may need these certificates to restore or replicate the network in the future.**
+
+Once the setup is done, you can verify it by opening the URL in the browser (https://private_ip_of_machine) . Replace private_ip_of_machine with the private IP address of the machine. The url will be accessible from the browser on that machine or from the browser on any other machine within the same network. Or you can expose port 443 for that machine and access the url using public IP address of the machine. (https://public_ip_of_machine) . 
+
+If you see 400, it means you are able to successfully connect to the server. If you encounter invalid certificate warning then it might be due to the earlier/default certificate already imported in the browser.
+
+![alt text](https://docs.wakandi.com/storage/400.png)
+
+To resolve the issue, you will have to use the correct certificate from the location mentioned on the console on successful completion of setup (API Certificate Location). Follow the below mentioned steps to import the certificate in the Chrome browser
+
+* Open chrome browser and navigate to “Settings”.
+* Open “Advanced” tab and select “Privacy and Security” section
+* Click on “Manage certificates”
+* Import the certificate (use the certificate with .p12 extension from the client_api_certs location) by entering the password of the certificate (use password mentioned on the console on successful completion of setup, API Certificate Password)
+* Open url in browser and trust the url
+* Select the certificate, you just imported, from the pop-up screen and click OK
+* You will see the below screen on completion
+* Restart the browser if you face any issue
+
+![alt text](https://docs.wakandi.com/storage/getError.png)
+
+<video controlsList=”nodownload” controls="controls" width="740" height="460"><source src="https://cdn.wakandi.com/Docs_Videos/2 verify_op_setup.mov" type="video/mp4"></video>
+<br/><br/>
+
+## Backup and restore
+Operators are required to regularly take a backup of their data. Run backup servers to handle failovers and also restore the data whenever required to offer the best services to users and allow them to use the system anytime.
+
+To backup the data please follow below mentioned steps:
+
+* To backup the data please follow below mentioned steps:
+
+>
+- cli
+
+```cli
+$ cd setup
+```
+
+* Execute the below mentioned command to generate backup file
+
+>
+- cli
+
+```cli
+$ ./wakandi-network.sh backup
+```
+
+This will generate the backup file with the name operator_data_(current-time-stamp).bkp at home location.
+Operators can schedule to execute above mentioned command to backup data periodically on the need basis. Also, the backup file generated should be transferred to other location (preferably other machine)
+
+To restore the operator data on other machine, please follow the below mentioned steps:
+
+* Transfer the latest backup file to the home directory of the new machine
+* Run the below command on the old machine to terminate the existing environment
+
+>
+- cli
+
+```cli
+$ kubectl delete deployments --all
+```
+
+* Change the domain binding pointing to the new machine if public IP is changed
+* Wait for at least 2-3 hours before executing the below commands. This is required for the new DNS changes to take effect
+* ssh to the new machine and clone the script on the home directory of the user from Wakandi Git repository. Credentials of the Git are provided during the registration process
+
+>
+- cli
+
+```cli
+$ git clone “https://git.wakandi.com/operator/setup.git” && cd setup
+```
+
+>
+- cli
+
+```cli
+$ ./wakandi-network.sh restore
+```
+
+This will setup the operator with backup data on the new machine.
+
+<video controlsList=”nodownload” controls="controls" width="740" height="460"><source src="https://cdn.wakandi.com/Docs_Videos/5 Backup&Restore.mov" type="video/mp4"></video>
+<br/><br/>
+
+master
+## Versions and Updates
+Wakandi will be constantly working on improvements and features to support the future requirements. Wakandi will also ensure that backward compatibility is supported. However, at times, the Operator would require to update the operator node to be compatible with the latest changes made on the network.
+
+Whenever Wakandi roll out updates regarding application or chain code, run the below mentioned command, after changing to the directory where operator setup code was cloned, to perform update at operator side
+
+>
+- cli
+
+```cli
+$ ./wakandi-network.sh update
+```
+<video controlsList=”nodownload” controls="controls" width="740" height="460"><source src="https://cdn.wakandi.com/Docs_Videos/3 update_op_setup.mov" type="video/mp4"></video>
+<br/><br/>
+
+Operator can re-configure the existing environment by altering the network.json file.
+
+* Note: In Sandbox release version 1.2.xxx,  Wakandi only provides support to alter the callback service url. If there is any change in the callback service, then this can be done by changing the value for callback_service mentioned in the network.json file. Once, the value is changed, run the below command, after changing to the directory where operator setup code was cloned,  to reflect it in the running environment.
+
+>
+- cli
+
+```cli
+$ ./wakandi-network.sh reconfigure
+
+```
+
+<video controlsList=”nodownload” controls="controls" width="740" height="460"><source src="https://cdn.wakandi.com/Docs_Videos/4 reconfigure_op_setup.mov" type="video/mp4"></video>
+<br/><br/>
+```
